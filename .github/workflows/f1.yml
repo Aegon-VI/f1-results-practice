@@ -1,0 +1,42 @@
+name: F1 Practice Results
+
+on:
+  schedule:
+    - cron: "*/5 * * * 5,6,0"   # Fri, Sat, Sun (UTC). Adjust if you want.
+  workflow_dispatch:
+
+permissions:
+  contents: write   # allow committing state.json
+
+concurrency:
+  group: f1-practice
+  cancel-in-progress: false
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: Run
+        run: python main.py
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TOP_N: "10"
+          LOCAL_TZ: "Europe/Amsterdam"
+
+      - name: Commit state if changed
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "Update state.json [skip ci]"
+            git push
+          fi
